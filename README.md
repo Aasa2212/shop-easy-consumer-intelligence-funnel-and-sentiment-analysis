@@ -1,69 +1,49 @@
-# Shop Easy Consumer Intelligence Funnel & Sentiment Analysis
+# ShopEasy Consumer Intelligence & Sentiment Analysis
 
-An end-to-end data analytics project simulating a consumer behavior and review sentiment pipeline for a fictional e-commerce brand, **Shop Easy**. Built entirely from synthetic data through SQL cleaning, Python sentiment analysis, and a Power BI dashboard.
+![Dashboard demo](dashboard_demo.gif)
 
-## Project Overview
+This is an end-to-end data project I built to practice the full analytics pipeline — from messy raw data all the way to a working Power BI dashboard. It's based on a fictional e-commerce brand called ShopEasy, and it looks at two things: where customers drop off in the buying funnel, and what they actually think about the products they buy.
 
-This project answers three business questions:
-1. **Where are customers dropping off in the purchase funnel?**
-2. **What do customers actually feel about our products, beyond star ratings?**
-3. **What specific issues (quality, price, shipping, service) drive negative sentiment?**
+## Why I built it this way
 
-## Pipeline
+I didn't want to just grab a clean Kaggle dataset and make a chart. I wanted to practice what real data work usually looks like — messy inputs, inconsistent formatting, and having to make judgment calls about what's actually wrong with the data versus what's just how it is. So I generated my own synthetic data and deliberately built in some common real-world problems: duplicate rows, inconsistent text casing, a couple of columns with two values crammed into one, and some intentional NULLs that actually mean something (not just missing data).
 
-**1. Data Generation** (`generate_data.py`)
-Synthetic datasets modeling 3 raw sources: customer journey events, product reviews, and marketing engagement — deliberately seeded with realistic data quality issues (duplicate records, inconsistent text casing, combined/dirty columns, and intentional NULL patterns) to practice real-world data cleaning.
+## What's in here
 
-**2. Data Validation** (`01_data_validation.sql`)
-Systematic SQL checks to detect:
-- Logical duplicates using `ROW_NUMBER() OVER (PARTITION BY ...)`
-- Hidden text-casing inconsistencies using `COLLATE ... CS_AS`
-- Whether NULL values represent a real pattern (correlated with Drop-off stage) vs. a data quality bug
-- Combined/dirty columns using `LIKE` pattern matching
+**Data validation (SQL)**
+Before touching anything, I ran checks to actually confirm what was wrong with the data instead of guessing. Used `ROW_NUMBER()` to catch duplicate rows that a primary key was hiding, `COLLATE` to expose casing issues that a normal `SELECT DISTINCT` would've missed, and grouped counts to check whether missing values were a real pattern or a bug (turns out the NULLs only showed up on "Drop-off" journey stages, which makes sense — there's no time-spent to record if someone just left).
 
-**3. Data Cleaning & Transformation** (`02_cleaning_transformation.sql`)
-- Deduplication via `ROW_NUMBER()`
-- Casing standardization via `CASE WHEN`
-- Splitting a combined "Views-Clicks" string column using `CHARINDEX()` / `SUBSTRING()` / `LEFT()`
-- Type conversion (VARCHAR → INT) with NULL preservation (not imputation) where NULLs represent real behavior
+**Cleaning (SQL)**
+Once I knew what was actually broken, I fixed it — deduped the journey table, standardized inconsistent casing, split a combined "views-clicks" string column into two real numbers, and converted text columns into proper numeric types. I kept the NULLs where they represented real behavior instead of filling them with fake values.
 
-**4. Sentiment Analysis** (`03_sentiment_analysis.py`)
-- VADER sentiment scoring on review text
-- **Hybrid scoring model**: blends VADER's compound score (40%) with the customer's star rating (60%), correcting for VADER's blind spots on short, informal review text (e.g., "will buy again" scores 0.0 in VADER alone, despite a 5-star rating)
+**Sentiment analysis (Python)**
+I used VADER to score review text, but quickly found it's not great on its own for short reviews — "will buy again" scores as completely neutral in VADER even with a 5-star rating attached. So I built a hybrid score that blends VADER's text score with the actual star rating (weighted 40/60), which fixed a lot of these blind spots. I also tagged each negative review with a theme (quality, price, shipping, customer service) using simple keyword matching — nothing fancy, but it's transparent and easy to explain, which I think matters more than a black-box model for something like this.
 
-**5. Theme Extraction** (`04_theme_extraction.py`)
-Keyword-bucket matching to tag *why* a review is negative (Quality / Price / Shipping-Delivery / Customer Service) — explainable and auditable, unlike a black-box classifier.
+**Dashboard (Power BI)**
+Four pages: Overview, Customer Sentiment, Conversion Analysis, and Marketing, with a sidebar to navigate between them. Built a proper star-schema data model with a Calendar table connected to all three fact tables, and wrote DAX measures for things like conversion rate, total visitors, and average sentiment score.
 
-**6. Power BI Dashboard**
-- Star-schema data model: a standalone Calendar table (built with DAX `CALENDAR()`) related to all 3 fact tables
-- 5 DAX measures: Total Visitors, Conversion Rate %, Total Views, Average Sentiment Score, Positive Review %
-- Visuals: customer journey funnel, sentiment breakdown, top negative review themes, KPI cards
+## What I found
 
-## Key Findings
+- About 36% of visitors who entered the funnel actually completed a purchase
+- Quality complaints made up the largest share of negative reviews by far — more than price and shipping issues combined
+- The hybrid sentiment score caught a bunch of reviews that VADER alone would've mislabeled as neutral
 
-- **Conversion rate: 36%** of visitors who entered the funnel completed a purchase
-- **Quality complaints dominate negative feedback** — 58% of negative reviews cite product quality, more than 3x the next-largest theme (Price)
-- Hybrid sentiment scoring rescued cases where VADER alone returned a neutral/blank score despite a clearly positive or negative star rating
+## Tools used
 
-## Tech Stack
-
-- **SQL Server** — data validation, cleaning, transformation
-- **Python** (VADER, pandas-free stdlib) — sentiment analysis, theme extraction
-- **Power BI** — data modeling (DAX), dashboard visualization
+SQL Server, Python (VADER), Power BI
 
 ## Files
 
-| File | Purpose |
-|---|---|
-| `generate_data.py` | Synthetic raw data generator |
-| `00_create_tables.sql` | Table schema creation |
-| `01_data_validation.sql` | Data quality validation queries |
-| `02_cleaning_transformation.sql` | Cleaning and transformation logic |
-| `03_sentiment_analysis.py` | Hybrid VADER + rating sentiment scoring |
-| `04_theme_extraction.py` | Keyword-based complaint theme tagging |
-| `Shop Easy_Dashboard.pbix` | Power BI dashboard file |
-| `reviews_final.csv` | Final sentiment-scored review dataset |
+- `generate_data.py` – creates the synthetic raw datasets
+- `00_create_tables.sql` – table setup
+- `01_data_validation.sql` – the queries I used to find what was wrong with the data
+- `02_cleaning_transformation.sql` – the actual cleaning logic
+- `03_sentiment_analysis.py` – hybrid VADER + rating sentiment scoring
+- `04_theme_extraction.py` – keyword-based complaint tagging
+- `ShopEasy_Dashboard.pbix` – the Power BI file
+- `reviews_final.csv` – reviews with sentiment scores attached
 
-## Author
+## About me
 
-Aasa Singh Sabharwal — [LinkedIn](https://linkedin.com/in/aasasingh) · [GitHub](https://github.com/Aasa2212)
+Aasa Singh Sabharwal — final year CS student, looking for Data Analyst roles.
+[LinkedIn](https://linkedin.com/in/aasasingh) · [GitHub](https://github.com/Aasa2212)
